@@ -1,0 +1,11 @@
+[
+    { "caption": "Subforce: Sync File", "command": "subforce_sync" },
+    { "caption": "Subforce: Add File", "command": "subforce_add" },
+    { "caption": "Subforce: Revert File", "command": "subforce_revert" },
+    { "caption": "Subforce: Checkout File", "command": "subforce_checkout" },
+    { "caption": "Subforce: View Changelists", "command": "subforce_view_changelists" },
+    { "caption": "Subforce: Create Changelist", "command": "subforce_create_changelist" },
+    { "caption": "Subforce: Edit Changelist", "command": "subforce_edit_changelist" },
+    { "caption": "Subforce: Delete Changelist", "command": "subforce_delete_changelist" },
+    { "caption": "Subforce: Move to Changelist", "command": "subforce_move_to_changelist" }
+]

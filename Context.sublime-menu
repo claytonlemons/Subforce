@@ -1,0 +1,60 @@
+[
+    {
+        "caption": "Subforce",
+        "id": "subforce",
+        "mnemonic": "S",
+        "children":
+        [
+            {
+                "caption": "Sync",
+                "mnemonic": "S",
+                "id": "subforce-sync",
+                "command": "subforce_sync",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Add",
+                "mnemonic": "A",
+                "id": "subforce-add",
+                "command": "subforce_add",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Revert",
+                "mnemonic": "R",
+                "id": "subforce-revert",
+                "command": "subforce_revert",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Checkout",
+                "mnemonic": "C",
+                "id": "subforce-checkout",
+                "command": "subforce_checkout",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Move to Changelist",
+                "mnemonic": "M",
+                "id": "subforce-move-to-changelist",
+                "command": "subforce_move_to_changelist",
+                "args":
+                {
+                    "paths": []
+                }
+            }
+        ]
+    }
+]
