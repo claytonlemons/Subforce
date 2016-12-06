@@ -11,9 +11,14 @@ import P4
 import os
 import threading
 import subprocess
+import re
 from .utilities import getAllViewsForPath
 
+NEW_CHANGELIST_NAME = "new"
+NEW_CHANGELIST_DESCRIPTION = "Creates a new changelist."
 DEFAULT_CHANGELIST_NAME = "default"
+DEFAULT_CHANGELIST_DESCRIPTION = "The default changelist."
+
 FILE_CHECKED_OUT_SETTING_KEY = "subforce_file_checked_out"
 FILE_NOT_IN_DEPOT_SETTING_KEY = "subforce_file_not_in_depot"
 CHANGELIST_NUMBER_STATUS_KEY = "subforce_changelist_number"
@@ -82,7 +87,7 @@ class ChangelistDescriptionOutputPanel(object):
          "hide_panel",
          {
             "panel": self.qualifiedOutputPanelName,
-            "cancel": False
+            "cancel": True
          }
       )
 
@@ -93,26 +98,33 @@ class ChangelistManager(object):
       self.window = window
       self.changelistDescriptionOutputPanel = ChangelistDescriptionOutputPanel(self.window)
 
-   def viewAllChangelists(self, window, onDoneCallback, includeDefault=False):
-      changelists = p4.run("changes", "-c", p4.client, "-s", "pending", "-L")
+   def viewAllChangelists(self, window, onDoneCallback, includeNew=False, includeDefault=False):
+      changelists = []
+
+      if includeNew:
+         changelists.append({"change": NEW_CHANGELIST_NAME, "desc": NEW_CHANGELIST_DESCRIPTION})
+
+      if includeDefault:
+         changelists.append({"change": DEFAULT_CHANGELIST_NAME, "desc": DEFAULT_CHANGELIST_DESCRIPTION})
+
+      changelists.extend(p4.run("changes", "-c", p4.client, "-s", "pending", "-l"))
 
       def onDone(selectedIndex):
          print("Selected: {}".format(selectedIndex))
          self.changelistDescriptionOutputPanel.hide()
          selectedChangelistNumber = changelists[selectedIndex]['change'] if selectedIndex >= 0 else None
-         if onDoneCallback:
+
+         if selectedChangelistNumber == NEW_CHANGELIST_NAME:
+            selectedChangelistNumber = self.createChangelist()
+
+         if onDoneCallback and selectedChangelistNumber:
             onDoneCallback(selectedChangelistNumber)
          SubforceStatusUpdatingEventListener.updateStatus(self.window.active_view())
 
-
       def onHighlighted(selectedIndex):
-         fullDescription = p4.fetch_change(changelists[selectedIndex]['change'])._description
-         self.changelistDescriptionOutputPanel.show(fullDescription)
+         self.changelistDescriptionOutputPanel.show(changelists[selectedIndex]['desc'])
 
-      changelistItems = [[changelist['change'], changelist['desc']] for changelist in changelists]
-
-      if includeDefault:
-         changelistItems = [[DEFAULT_CHANGELIST_NAME, ""]] + changelistItems
+      changelistItems = [[changelist['change'], changelist['desc'][:250]] for changelist in changelists]
 
       window.show_quick_panel(
          changelistItems,
@@ -123,13 +135,19 @@ class ChangelistManager(object):
       )
 
    def createChangelist(self):
-      self.editChangelist(None)
+      return self.editChangelist(None)
 
    def editChangelist(self, changelistNumber):
       if changelistNumber:
-         p4.run_change(changelistNumber)
+         changeResult = p4.run_change(changelistNumber)[0]
       else: # create a new changelist
-         p4.run_change()
+         changeResult = p4.run_change()[0]
+
+      changeResultRE = r'Change (\d+) (updated|created).'
+      changeResultMatch = re.match(changeResultRE, changeResult)
+      assert changeResultMatch and changeResultMatch.group(1).isdigit()
+
+      return changeResultMatch.group(1)
 
    def deleteChangelist(self, changelistNumber):
       p4.run_change("-d", changelistNumber)
@@ -170,6 +188,12 @@ class SubforceAutoCheckoutEventListener(sublime_plugin.EventListener):
          p4.run_edit(fileName)
          view.settings().set(FILE_CHECKED_OUT_SETTING_KEY, True)
 
+      moveToChangelist = sublime.ok_cancel_dialog(
+         "You're file has been checked out in the default changelist. Do you want to move it to another changelist?",
+         "Move"
+      )
+
+      if moveToChangelist:
          view.window().run_command(
             "subforce_move_to_changelist",
             {
@@ -245,13 +269,12 @@ class SubforceAddCommand(sublime_plugin.WindowCommand):
          paths = [self.window.active_view().file_name()]
 
       def onDoneCallback(selectedChangelistNumber):
-         if selectedChangelistNumber:
-            for path in paths:
-               print("Subforce: adding {} to {}: ".format(path, selectedChangelistNumber))
-               if selectedChangelistNumber == DEFAULT_CHANGELIST_NAME:
-                  p4.run_add(selectedChangelistNumber, path)
-               else:
-                  p4.run_add("-c", selectedChangelistNumber, path)
+         for path in paths:
+            print("Subforce: adding {} to {}: ".format(path, selectedChangelistNumber))
+            if selectedChangelistNumber == DEFAULT_CHANGELIST_NAME:
+               p4.run_add(selectedChangelistNumber, path)
+            else:
+               p4.run_add("-c", selectedChangelistNumber, path)
 
       ChangelistManager(self.window).viewAllChangelists(self.window, onDoneCallback)
 
@@ -261,18 +284,17 @@ class SubforceCheckoutCommand(sublime_plugin.WindowCommand):
          paths = [self.window.active_view().file_name()]
 
       def onDoneCallback(selectedChangelistNumber):
-         if selectedChangelistNumber:
-            for path in paths:
-               if os.path.isdir(path):
-                  path = os.path.join(path, '...')
+         for path in paths:
+            if os.path.isdir(path):
+               path = os.path.join(path, '...')
 
-               print("Subforce: checking out {} in {}: ".format(path, selectedChangelistNumber))
-               if selectedChangelistNumber == DEFAULT_CHANGELIST_NAME:
-                  p4.run_edit(path)
-               else:
-                  p4.run_edit("-c", selectedChangelistNumber, path)
+            print("Subforce: checking out {} in {}: ".format(path, selectedChangelistNumber))
+            if selectedChangelistNumber == DEFAULT_CHANGELIST_NAME:
+               p4.run_edit(path)
+            else:
+               p4.run_edit("-c", selectedChangelistNumber, path)
 
-      ChangelistManager(self.window).viewAllChangelists(self.window, onDoneCallback)
+      ChangelistManager(self.window).viewAllChangelists(self.window, onDoneCallback, includeNew=True, includeDefault=True)
 
 class SubforceRevertCommand(sublime_plugin.WindowCommand):
    def run(self, paths = []):
@@ -286,7 +308,7 @@ class SubforceRevertCommand(sublime_plugin.WindowCommand):
 
    def _resetAutoCheckoutEventListenerSettingsForAllViews(self, path):
       for view in getAllViewsForPath(path):
-         AutoCheckoutEventListener.eraseAutoCheckoutEventListenerSettings(view)
+         SubforceAutoCheckoutEventListener.eraseAutoCheckoutEventListenerSettings(view)
 
 class SubforceViewChangelistsCommand(sublime_plugin.WindowCommand):
    def run(self):
@@ -301,9 +323,8 @@ class SubforceEditChangelistCommand(sublime_plugin.WindowCommand):
       changelistManager = ChangelistManager(self.window)
 
       def onDoneCallback(selectedChangelistNumber):
-         if selectedChangelistNumber:
-            print("Subforce: editing {}".format(selectedChangelistNumber))
-            changelistManager.editChangelist(selectedChangelistNumber)
+         print("Subforce: editing {}".format(selectedChangelistNumber))
+         changelistManager.editChangelist(selectedChangelistNumber)
 
       changelistManager.viewAllChangelists(self.window, onDoneCallback)
 
@@ -312,9 +333,8 @@ class SubforceDeleteChangelistCommand(sublime_plugin.WindowCommand):
       changelistManager = ChangelistManager(self.window)
 
       def onDoneCallback(selectedChangelistNumber):
-         if selectedChangelistNumber:
-            print("Subforce: deleting {}".format(selectedChangelistNumber))
-            changelistManager.deleteChangelist(selectedChangelistNumber)
+         print("Subforce: deleting {}".format(selectedChangelistNumber))
+         changelistManager.deleteChangelist(selectedChangelistNumber)
 
       changelistManager.viewAllChangelists(self.window, onDoneCallback)
 
@@ -326,12 +346,11 @@ class SubforceMoveToChangelistCommand(sublime_plugin.WindowCommand):
       changelistManager = ChangelistManager(self.window)
 
       def onDoneCallback(selectedChangelistNumber):
-         if selectedChangelistNumber:
-            for path in paths:
-               print("Subforce: moving {} to {}".format(path, selectedChangelistNumber))
-               changelistManager.moveToChangelist(selectedChangelistNumber, path)
+         for path in paths:
+            print("Subforce: moving {} to {}".format(path, selectedChangelistNumber))
+            changelistManager.moveToChangelist(selectedChangelistNumber, path)
 
-      changelistManager.viewAllChangelists(self.window, onDoneCallback)
+      changelistManager.viewAllChangelists(self.window, onDoneCallback, includeNew=True, includeDefault=True)
 
 
 def executeP4VCCommand(command, *args):
