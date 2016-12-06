@@ -7,5 +7,8 @@
     { "caption": "Subforce: Create Changelist", "command": "subforce_create_changelist" },
     { "caption": "Subforce: Edit Changelist", "command": "subforce_edit_changelist" },
     { "caption": "Subforce: Delete Changelist", "command": "subforce_delete_changelist" },
-    { "caption": "Subforce: Move to Changelist", "command": "subforce_move_to_changelist" }
+    { "caption": "Subforce: Move to Changelist", "command": "subforce_move_to_changelist" },
+    { "caption": "Subforce: View Timelapse", "command": "subforce_view_timelapse" },
+    { "caption": "Subforce: Submit Changelist", "command": "subforce_submit_changelist" },
+    { "caption": "Subforce: Resolve File", "command": "subforce_resolve" }
 ]

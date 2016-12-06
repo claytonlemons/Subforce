@@ -10,6 +10,7 @@ import sublime_plugin
 import P4
 import os
 import threading
+import subprocess
 from .utilities import getAllViewsForPath
 
 DEFAULT_CHANGELIST_NAME = "default"
@@ -331,3 +332,39 @@ class SubforceMoveToChangelistCommand(sublime_plugin.WindowCommand):
                changelistManager.moveToChangelist(selectedChangelistNumber, path)
 
       changelistManager.viewAllChangelists(self.window, onDoneCallback)
+
+
+def executeP4VCCommand(command, *args):
+   command = " ".join(["p4vc.exe", command] + list(args))
+   print("Subforce: executing p4vc command '{}'".format(command))
+   process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, cwd=p4.cwd)
+   stdout, stderr = process.communicate()
+   if stdout:
+      print(stdout)
+   if stderr:
+      print(stderr)
+
+class SubforceViewTimelapseCommand(sublime_plugin.WindowCommand):
+   def run(self, paths=[]):
+      if not paths:
+         paths = [self.window.active_view().file_name()]
+
+      for path in paths:
+         executeP4VCCommand("timelapseview", path)
+
+class SubforceSubmitChangelistCommand(sublime_plugin.WindowCommand):
+   def run(self):
+      changelistManager = ChangelistManager(self.window)
+
+      def onDoneCallback(selectedChangelistNumber):
+         if selectedChangelistNumber:
+            executeP4VCCommand("submit", "-c", selectedChangelistNumber)
+
+      changelistManager.viewAllChangelists(self.window, onDoneCallback)
+
+class SubforceResolveCommand(sublime_plugin.WindowCommand):
+   def run(self, paths=[]):
+      if not paths:
+         paths = [self.window.active_view().file_name()]
+
+      executeP4VCCommand("resolve", " ".join(paths))

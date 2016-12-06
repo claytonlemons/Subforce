@@ -54,6 +54,26 @@
                 {
                     "paths": []
                 }
+            },
+            {
+                "caption": "View Timelapse",
+                "mnemonic": "T",
+                "id": "subforce-view-timelapse",
+                "command": "subforce_view_timelapse",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Resolve",
+                "mnemonic": "R",
+                "id": "subforce-resolve",
+                "command": "subforce_resolve",
+                "args":
+                {
+                    "paths": []
+                }
             }
         ]
     }
