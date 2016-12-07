@@ -26,6 +26,16 @@
                 }
             },
             {
+                "caption": "Checkout",
+                "mnemonic": "C",
+                "id": "subforce-checkout",
+                "command": "subforce_checkout",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
                 "caption": "Revert",
                 "mnemonic": "R",
                 "id": "subforce-revert",
@@ -36,10 +46,10 @@
                 }
             },
             {
-                "caption": "Checkout",
-                "mnemonic": "C",
-                "id": "subforce-checkout",
-                "command": "subforce_checkout",
+                "caption": "Rename",
+                "mnemonic": "e",
+                "id": "subforce-rename",
+                "command": "subforce_rename",
                 "args":
                 {
                     "paths": []
