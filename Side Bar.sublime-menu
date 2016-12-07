@@ -74,6 +74,26 @@
                 {
                     "paths": []
                 }
+            },
+            {
+                "caption": "View Graphical Diff of Workspace File",
+                "mnemonic": "W",
+                "id": "subforce-view-graphical-diff-workspace-file",
+                "command": "subforce_view_graphical_diff_workspace_file",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "View Graphical Diff of Depot Revisions",
+                "mnemonic": "D",
+                "id": "subforce-view-graphical-diff-depot-revisions",
+                "command": "subforce_view_graphical_diff_depot_revisions",
+                "args":
+                {
+                    "paths": []
+                }
             }
         ]
     }

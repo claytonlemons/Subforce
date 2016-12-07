@@ -12,18 +12,26 @@ import os
 import threading
 import subprocess
 import re
-from .utilities import getAllViewsForPath
+import tempfile
+from .utilities import getAllViewsForPath, coercePathsToActiveViewIfNeeded, getRevisionQualifiedDepotPath
 
 NEW_CHANGELIST_NAME = "new"
 NEW_CHANGELIST_DESCRIPTION = "Creates a new changelist."
 DEFAULT_CHANGELIST_NAME = "default"
 DEFAULT_CHANGELIST_DESCRIPTION = "The default changelist."
 
+HAVE_REVISION_NAME = "have"
+HAVE_REVISION_DESCRIPTION = "The currently synced revision."
+HEAD_REVISION_NAME = "head"
+HEAD_REVISION_DESCRIPTION = "The most recently checked-in revision."
+
 FILE_CHECKED_OUT_SETTING_KEY = "subforce_file_checked_out"
 FILE_NOT_IN_DEPOT_SETTING_KEY = "subforce_file_not_in_depot"
 CHANGELIST_NUMBER_STATUS_KEY = "subforce_changelist_number"
 
 p4 = None
+
+createRevision = lambda revision, description: {'revision': revision, 'desc': description}
 
 def plugin_loaded():
    global p4
@@ -98,7 +106,7 @@ class ChangelistManager(object):
       self.window = window
       self.changelistDescriptionOutputPanel = ChangelistDescriptionOutputPanel(self.window)
 
-   def viewAllChangelists(self, window, onDoneCallback, includeNew=False, includeDefault=False):
+   def viewAllChangelists(self, onDoneCallback, includeNew=False, includeDefault=False):
       changelists = []
 
       if includeNew:
@@ -126,7 +134,7 @@ class ChangelistManager(object):
 
       changelistItems = [[changelist['change'], changelist['desc'][:250]] for changelist in changelists]
 
-      window.show_quick_panel(
+      self.window.show_quick_panel(
          changelistItems,
          onDone,
          sublime.KEEP_OPEN_ON_FOCUS_LOST,
@@ -239,8 +247,7 @@ class SubforceStatusUpdatingEventListener(sublime_plugin.EventListener):
 
 class SubforceSyncCommand(sublime_plugin.WindowCommand):
    def run(self, paths = []):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       dirtyOpenFiles = (view.file_name() for window in sublime.windows() for view in window.views() if view.is_dirty())
 
@@ -265,8 +272,7 @@ class SubforceSyncCommand(sublime_plugin.WindowCommand):
 
 class SubforceAddCommand(sublime_plugin.WindowCommand):
    def run(self, paths = []):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       def onDoneCallback(selectedChangelistNumber):
          for path in paths:
@@ -276,12 +282,11 @@ class SubforceAddCommand(sublime_plugin.WindowCommand):
             else:
                p4.run_add("-c", selectedChangelistNumber, path)
 
-      ChangelistManager(self.window).viewAllChangelists(self.window, onDoneCallback)
+      ChangelistManager(self.window).viewAllChangelists(onDoneCallback)
 
 class SubforceCheckoutCommand(sublime_plugin.WindowCommand):
    def run(self, paths = []):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       def onDoneCallback(selectedChangelistNumber):
          for path in paths:
@@ -294,12 +299,11 @@ class SubforceCheckoutCommand(sublime_plugin.WindowCommand):
             else:
                p4.run_edit("-c", selectedChangelistNumber, path)
 
-      ChangelistManager(self.window).viewAllChangelists(self.window, onDoneCallback, includeNew=True, includeDefault=True)
+      ChangelistManager(self.window).viewAllChangelists(onDoneCallback, includeNew=True, includeDefault=True)
 
 class SubforceRevertCommand(sublime_plugin.WindowCommand):
    def run(self, paths = []):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       for path in paths:
          print("Subforce: reverting {}".format(path))
@@ -312,7 +316,7 @@ class SubforceRevertCommand(sublime_plugin.WindowCommand):
 
 class SubforceViewChangelistsCommand(sublime_plugin.WindowCommand):
    def run(self):
-      ChangelistManager(self.window).viewAllChangelists(self.window, None)
+      ChangelistManager(self.window).viewAllChangelists(None)
 
 class SubforceCreateChangelistCommand(sublime_plugin.WindowCommand):
    def run(self):
@@ -326,7 +330,7 @@ class SubforceEditChangelistCommand(sublime_plugin.WindowCommand):
          print("Subforce: editing {}".format(selectedChangelistNumber))
          changelistManager.editChangelist(selectedChangelistNumber)
 
-      changelistManager.viewAllChangelists(self.window, onDoneCallback)
+      changelistManager.viewAllChangelists(onDoneCallback)
 
 class SubforceDeleteChangelistCommand(sublime_plugin.WindowCommand):
    def run(self):
@@ -336,12 +340,11 @@ class SubforceDeleteChangelistCommand(sublime_plugin.WindowCommand):
          print("Subforce: deleting {}".format(selectedChangelistNumber))
          changelistManager.deleteChangelist(selectedChangelistNumber)
 
-      changelistManager.viewAllChangelists(self.window, onDoneCallback)
+      changelistManager.viewAllChangelists(onDoneCallback)
 
 class SubforceMoveToChangelistCommand(sublime_plugin.WindowCommand):
    def run(self, paths=[]):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       changelistManager = ChangelistManager(self.window)
 
@@ -350,7 +353,7 @@ class SubforceMoveToChangelistCommand(sublime_plugin.WindowCommand):
             print("Subforce: moving {} to {}".format(path, selectedChangelistNumber))
             changelistManager.moveToChangelist(selectedChangelistNumber, path)
 
-      changelistManager.viewAllChangelists(self.window, onDoneCallback, includeNew=True, includeDefault=True)
+      changelistManager.viewAllChangelists(onDoneCallback, includeNew=True, includeDefault=True)
 
 
 def executeP4VCCommand(command, *args):
@@ -365,8 +368,7 @@ def executeP4VCCommand(command, *args):
 
 class SubforceViewTimelapseCommand(sublime_plugin.WindowCommand):
    def run(self, paths=[]):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       for path in paths:
          executeP4VCCommand("timelapseview", path)
@@ -379,11 +381,153 @@ class SubforceSubmitChangelistCommand(sublime_plugin.WindowCommand):
          if selectedChangelistNumber:
             executeP4VCCommand("submit", "-c", selectedChangelistNumber)
 
-      changelistManager.viewAllChangelists(self.window, onDoneCallback)
+      changelistManager.viewAllChangelists(onDoneCallback)
 
 class SubforceResolveCommand(sublime_plugin.WindowCommand):
    def run(self, paths=[]):
-      if not paths:
-         paths = [self.window.active_view().file_name()]
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
 
       executeP4VCCommand("resolve", " ".join(paths))
+
+
+class GraphicalDiffManager:
+   def __init__(self, window):
+      self.window = window
+      self.changelistDescriptionOutputPanel = ChangelistDescriptionOutputPanel(self.window)
+      self._callbackDepth = 0
+
+
+   def diffClientFileAgainstDepotRevision(self, file, revision):
+      depotFilePath = p4.run_fstat(file)[0]['depotFile']
+
+      temporaryDepotFilePath = self._createTemporaryDepotFile(depotFilePath, revision)
+      self._startP4MergeThread(
+         temporaryDepotFilePath,
+         file,
+         getRevisionQualifiedDepotPath(depotFilePath, revision),
+         "{} (workspace file)".format(file)
+      )
+
+   def diffDepotRevisions(self, file, revision1, revision2):
+      (revision1, revision2) = (revision1, revision2) if int(revision1) < int(revision2) else (revision2, revision1)
+      depotFilePath = p4.run_fstat(file)[0]['depotFile']
+
+      temporaryDepotFilePath1 = self._createTemporaryDepotFile(depotFilePath, revision1)
+      temporaryDepotFilePath2 = self._createTemporaryDepotFile(depotFilePath, revision2)
+      self._startP4MergeThread(
+         temporaryDepotFilePath1,
+         temporaryDepotFilePath2,
+         getRevisionQualifiedDepotPath(depotFilePath, revision1),
+         getRevisionQualifiedDepotPath(depotFilePath, revision2)
+      )
+
+   def _startP4MergeThread(self, leftFile, rightFile, leftFileAlias, rightFileAlias):
+      def target():
+         command = ["p4merge.exe", '-nl', leftFileAlias, '-nr', rightFileAlias, leftFile, rightFile]
+         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+         print("hello")
+         stdout, stderr = process.communicate()
+         if stdout:
+            print(stdout)
+         if stderr:
+            print(stderr)
+
+      threading.Thread(target=target).start()
+
+   def _createTemporaryDepotFile(self, file, revision):
+      # @TODO: At some point in time, we may want to create temporary files with the same naming convention as p4v.
+      with tempfile.NamedTemporaryFile(prefix="subforce_", delete=False) as temporaryFile:
+         depotFilePath = getRevisionQualifiedDepotPath(file, revision)
+         depotFileText = p4.run_print(depotFilePath)[1]
+         temporaryFile.write(bytes(depotFileText, 'UTF-8'))
+         return temporaryFile.name
+
+
+   def showHaveHeadRevisions(self, onDoneCallback):
+      revisions = [{'revision': HAVE_REVISION_NAME, 'desc': HAVE_REVISION_DESCRIPTION}, {'revision': HEAD_REVISION_NAME, 'desc': HEAD_REVISION_DESCRIPTION}]
+      self._showRevisions(revisions, onDoneCallback)
+
+
+   def showHaveHeadAndFileRevisions(self, file, onDoneCallback):
+      revisions = [createRevision(HAVE_REVISION_NAME, HAVE_REVISION_DESCRIPTION), createRevision(HEAD_REVISION_NAME, HEAD_REVISION_DESCRIPTION)]
+      revisions.extend(
+         [
+            createRevision(str(revision.rev), revision.desc)
+            for revision in p4.run_filelog("-l", file)[0].revisions
+         ]
+      )
+      self._showRevisions(revisions, onDoneCallback)
+
+   def _showRevisions(self, revisions, onDoneCallback):
+      self._callbackDepth += 1
+      def onDone(selectedIndex):
+         selectedRevision = revisions[selectedIndex]['revision'] if selectedIndex >= 0 else None
+
+         if onDoneCallback and selectedRevision:
+            onDoneCallback(selectedRevision)
+
+         if self._callbackDepth == 1: # last one out turns off the lights.
+            self.changelistDescriptionOutputPanel.hide()
+         self._callbackDepth -= 1
+
+      def onHighlighted(selectedIndex):
+         self.changelistDescriptionOutputPanel.show(revisions[selectedIndex]['desc'])
+
+      revisionItems = [[revision['revision'], revision['desc'][:250]] for revision in revisions]
+
+      self.window.show_quick_panel(
+         revisionItems,
+         onDone,
+         sublime.KEEP_OPEN_ON_FOCUS_LOST,
+         0,
+         onHighlighted
+      )
+
+class SubforceViewGraphicalDiffWorkspaceFileCommand(sublime_plugin.WindowCommand):
+   '''
+   Diffs one or more files against a depot revision.
+   A single file may be diffed against any revision.
+   Multiple files may only be diffed against the have or head revisions.
+   '''
+   def run(self, paths=[]):
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
+
+      graphicalDiffManager = GraphicalDiffManager(self.window)
+
+      if len(paths) == 1:
+         path = paths[0]
+
+         def onDoneCallback(selectedRevision):
+            graphicalDiffManager.diffClientFileAgainstDepotRevision(path, selectedRevision)
+
+         graphicalDiffManager.showHaveHeadAndFileRevisions(path, onDoneCallback)
+      else:
+         def onDoneCallback(selectedRevision):
+            for path in paths:
+               graphicalDiffManager.diffClientFileAgainstDepotRevision(path, selectedRevision)
+
+         graphicalDiffManager.showHaveHeadRevisions(onDoneCallback)
+
+class SubforceViewGraphicalDiffDepotRevisionsCommand(sublime_plugin.WindowCommand):
+   '''
+   Diffs two depot revisions of a given file.
+   Only a single file may be diffed at a time.
+   '''
+   def run(self, paths=[]):
+      paths = coercePathsToActiveViewIfNeeded(paths, self.window)
+
+      graphicalDiffManager = GraphicalDiffManager(self.window)
+
+      if len(paths) > 1:
+         sublime.error_message("A graphical diff of depot revisions can only be performed on one workspace file at a time.")
+         return
+      else:
+         path = paths[0]
+
+         def onDoneCallback1(selectedRevision1):
+            def onDoneCallback2(selectedRevision2):
+               graphicalDiffManager.diffDepotRevisions(path, selectedRevision1, selectedRevision2)
+            print(selectedRevision1)
+            graphicalDiffManager.showHaveHeadAndFileRevisions(path, onDoneCallback2)
+         graphicalDiffManager.showHaveHeadAndFileRevisions(path, onDoneCallback1)
+

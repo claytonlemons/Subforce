@@ -10,5 +10,7 @@
     { "caption": "Subforce: Move to Changelist", "command": "subforce_move_to_changelist" },
     { "caption": "Subforce: View Timelapse", "command": "subforce_view_timelapse" },
     { "caption": "Subforce: Submit Changelist", "command": "subforce_submit_changelist" },
-    { "caption": "Subforce: Resolve File", "command": "subforce_resolve" }
+    { "caption": "Subforce: Resolve File", "command": "subforce_resolve" },
+    { "caption": "Subforce: View Graphical Diff of Workspace File", "command": "subforce_view_graphical_diff_workspace_file" },
+    { "caption": "Subforce: View Graphical Diff of Depot Revisions", "command": "subforce_view_graphical_diff_depot_revisions" }
 ]
