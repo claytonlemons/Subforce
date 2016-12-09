@@ -1,0 +1,24 @@
+{
+   // Configures P4Python's working directory.
+   // When set to null, the working directory defaults to the current project's first folder.
+   "current_working_directory": null,
+
+   // Display Perforce warnings as informational message boxes. (This can get annoying sometimes.)
+   "display_warnings": true,
+
+   // By default, the P4Python API uses Perforce's standard lookup mechanism for
+   // determining connection parameters:
+   // 1) environment variables
+   // 2) registry or user preferences
+   // 3) P4CONFIG file
+   // To override this lookup mechanism, set the following option to true
+   // and ensure the connection_info_* settings are configured (or you will get errors).
+   "use_connection_info": false,
+   "connection_info_port": null,
+   "connection_info_user": null,
+   "connection_info_client": null,
+
+   // Disables the Auto-Checkout-On-Save feature.
+   "disable_auto_checkout": false
+
+}

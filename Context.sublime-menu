@@ -6,10 +6,30 @@
         "children":
         [
             {
+                "caption": "Login",
+                "mnemonic": "L",
+                "id": "subforce-login",
+                "command": "subforce_login",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
                 "caption": "Sync",
                 "mnemonic": "S",
                 "id": "subforce-sync",
                 "command": "subforce_sync",
+                "args":
+                {
+                    "paths": []
+                }
+            },
+            {
+                "caption": "Get Revision",
+                "mnemonic": "R",
+                "id": "subforce-get-revision",
+                "command": "subforce_get_revision",
                 "args":
                 {
                     "paths": []

@@ -1,5 +1,7 @@
 [
+    { "caption": "Subforce: Login", "command": "subforce_login" },
     { "caption": "Subforce: Sync File", "command": "subforce_sync" },
+    { "caption": "Subforce: Get Revision for File", "command": "subforce_get_revision" },
     { "caption": "Subforce: Add File", "command": "subforce_add" },
     { "caption": "Subforce: Checkout File", "command": "subforce_checkout" },
     { "caption": "Subforce: Revert File", "command": "subforce_revert" },

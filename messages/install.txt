@@ -1,0 +1,9 @@
+Subforce - A sublime integration of the Perforce API
+   by Clayton Lemons (mrelusive@gmail.com)
+
+Thank you for your support and in interest in this plugin! If you have any questions or feedback,
+please email me at mrelusive@gmail.com or open an issue at https://github.com/MrElusive/Subforce/issues.
+
+Sincerely,
+
+Clayton Lemons
